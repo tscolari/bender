@@ -16,5 +16,5 @@ type RunStats struct {
 }
 
 type Runner interface {
-	Run() (Summary, error)
+	Run(concurrency int) (Summary, error)
 }
