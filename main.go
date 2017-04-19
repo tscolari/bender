@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/tscolari/bender/runner"
 	"github.com/urfave/cli"
@@ -24,10 +27,19 @@ func main() {
 			Value: 1,
 			Usage: "how many threads to use",
 		},
+		cli.StringSliceFlag{
+			Name:  "command",
+			Usage: "command(s) to run. May be set more than once",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
-		runner := runner.NewCountRunner(c.Int("count"), c.Args()...)
+		commands := c.StringSlice("command")
+		if len(commands) == 0 {
+			return errors.New("Missing at least one `--command` argument")
+		}
+
+		runner := runner.NewCountRunner(c.Int("count"), commands...)
 		cancelChan := make(chan bool)
 		summary, err := runner.Run(c.Int("concurrency"), cancelChan)
 		if err != nil {
@@ -47,4 +59,8 @@ func main() {
 		os.Exit(1)
 	}
 
+}
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
 }
