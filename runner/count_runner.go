@@ -1,9 +1,6 @@
 package runner
 
 import (
-	"math/rand"
-	"os/exec"
-	"strings"
 	"sync"
 	"time"
 
@@ -12,9 +9,8 @@ import (
 )
 
 type CountRunner struct {
-	cmdRunner commandrunner.CommandRunner
-	counter   int
-	commands  []string
+	baseRunner
+	counter int
 }
 
 func NewCountRunner(counter int, commands ...string) *CountRunner {
@@ -23,10 +19,10 @@ func NewCountRunner(counter int, commands ...string) *CountRunner {
 }
 
 func NewCountRunnerWithCmdRunner(cmdRunner commandrunner.CommandRunner, counter int, commands ...string) *CountRunner {
+	baseRunner := newBaseRunner(cmdRunner, commands...)
 	return &CountRunner{
-		cmdRunner: cmdRunner,
-		counter:   counter,
-		commands:  commands,
+		baseRunner: baseRunner,
+		counter:    counter,
 	}
 }
 
@@ -57,37 +53,8 @@ func (r *CountRunner) Run(concurrency int, cancel chan bool) (Summary, error) {
 	summary.Duration = time.Since(start)
 
 	close(stats)
-	for runStats := range stats {
-		if runStats.Failed {
-			summary.ErrorCounter++
-		} else {
-			summary.SuccessCounter++
-		}
-		summary.EachRun = append(summary.EachRun, runStats)
-
-		cmd := summary.Commands[runStats.Command]
-		cmd.RunCount++
-		summary.Commands[runStats.Command] = cmd
-	}
+	r.mergeRunstatsIntoSummary(stats, &summary)
 	return summary, nil
-}
-
-func (r *CountRunner) run() RunStats {
-	var runStats RunStats
-	runStats.StartTime = time.Now()
-
-	cmdIdx := rand.Int() % len(r.commands)
-	args := strings.Split(r.commands[cmdIdx], " ")
-	runStats.Command = cmdIdx + 1
-
-	cmd := exec.Command(args[0], args[1:]...)
-	err := r.cmdRunner.Run(cmd)
-	runStats.Duration = time.Since(runStats.StartTime)
-	if err != nil {
-		runStats.Failed = true
-	}
-
-	return runStats
 }
 
 func (r *CountRunner) startWorker(tasks chan bool, stop chan bool, stats chan RunStats) {
@@ -101,16 +68,4 @@ func (r *CountRunner) startWorker(tasks chan bool, stop chan bool, stats chan Ru
 			return
 		}
 	}
-}
-
-func (r *CountRunner) commandsSummary() map[int]Command {
-	summary := map[int]Command{}
-
-	for i, command := range r.commands {
-		summary[i+1] = Command{
-			Exec: command,
-		}
-	}
-
-	return summary
 }

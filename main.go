@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/tscolari/bender/runner"
@@ -31,16 +33,38 @@ func main() {
 			Name:  "command",
 			Usage: "command(s) to run. May be set more than once",
 		},
+		cli.BoolFlag{
+			Name:  "keep-running",
+			Usage: "run until aborted (ctrl-c)",
+		},
+		cli.DurationFlag{
+			Name:  "interval",
+			Value: 0,
+			Usage: "interval to use between each call when using keep-running",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
-		commands := c.StringSlice("command")
-		if len(commands) == 0 {
+		if len(c.StringSlice("command")) == 0 {
 			return errors.New("Missing at least one `--command` argument")
 		}
 
-		runner := runner.NewCountRunner(c.Int("count"), commands...)
+		if c.Bool("keep-running") && c.IsSet("count") {
+			return errors.New("can't use `--keep-running` and `--count` at the same time")
+		}
+
+		if c.IsSet("count") && c.IsSet("interval") {
+			return errors.New("can't use `--count` and `--interval` at the same time")
+		}
+
 		cancelChan := make(chan bool)
+		listenForShutdown(cancelChan)
+
+		runner, err := newRunnerFromArgs(c)
+		if err != nil {
+			return err
+		}
+
 		summary, err := runner.Run(c.Int("concurrency"), cancelChan)
 		if err != nil {
 			return fmt.Errorf("Failed to run: %s", err.Error())
@@ -59,6 +83,30 @@ func main() {
 		os.Exit(1)
 	}
 
+}
+
+func newRunnerFromArgs(c *cli.Context) (runner.Runner, error) {
+	commands := c.StringSlice("command")
+
+	if c.IsSet("count") {
+		return runner.NewCountRunner(c.Int("count"), commands...), nil
+	}
+
+	if c.IsSet("keep-running") {
+		return runner.NewLoopRunner(c.Duration("interval"), commands...), nil
+	}
+
+	return nil, errors.New("no runner detected. Use `--keep-running` or `--count`")
+}
+
+func listenForShutdown(cancel chan bool) {
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(c, os.Interrupt, syscall.SIGKILL)
+	go func() {
+		<-c
+		close(cancel)
+	}()
 }
 
 func init() {
