@@ -51,6 +51,14 @@ $ go run main.go --count 5 --command ls --command "sleep 1" --command "sleep 3" 
   * start_time: when the execution started
   * failed: true if the execution exited in error
 
+## Installation
+
+```
+go get github.com/tscolari/bender
+```
+
+or download from [releases](https://github.com/tscolari/bender/releases)
+
 ## Count
 
 When using `--count` it will run the commands defined by `--command` for a finite amount of times.

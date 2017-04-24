@@ -17,6 +17,7 @@ import (
 func main() {
 	app := cli.NewApp()
 	app.Name = "bender"
+	app.Version = "1.0.0"
 	app.Usage = "Benchmark external commands"
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
