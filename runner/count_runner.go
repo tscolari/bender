@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -13,22 +14,26 @@ type CountRunner struct {
 	counter int
 }
 
-func NewCountRunner(counter int, commands ...string) *CountRunner {
+func NewCountRunner(counter int) *CountRunner {
 	cmdRunner := linux_command_runner.New()
-	return NewCountRunnerWithCmdRunner(cmdRunner, counter, commands...)
+	return NewCountRunnerWithCmdRunner(cmdRunner, counter)
 }
 
-func NewCountRunnerWithCmdRunner(cmdRunner commandrunner.CommandRunner, counter int, commands ...string) *CountRunner {
-	baseRunner := newBaseRunner(cmdRunner, commands...)
+func NewCountRunnerWithCmdRunner(cmdRunner commandrunner.CommandRunner, counter int) *CountRunner {
+	baseRunner := newBaseRunner(cmdRunner)
 	return &CountRunner{
 		baseRunner: baseRunner,
 		counter:    counter,
 	}
 }
 
-func (r *CountRunner) Run(concurrency int, cancel chan bool) (Summary, error) {
+func (r *CountRunner) Run(concurrency int, cancel chan bool, commands ...string) (Summary, error) {
+	if len(commands) == 0 {
+		return Summary{}, errors.New("no commands given")
+	}
+
 	summary := Summary{
-		Commands: r.commandsSummary(),
+		Commands: r.commandsSummary(commands),
 	}
 
 	start := time.Now()
@@ -44,7 +49,7 @@ func (r *CountRunner) Run(concurrency int, cancel chan bool) (Summary, error) {
 	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func() {
-			r.startWorker(tasks, cancel, stats)
+			r.startWorker(tasks, cancel, stats, commands)
 			wg.Done()
 		}()
 	}
@@ -57,11 +62,11 @@ func (r *CountRunner) Run(concurrency int, cancel chan bool) (Summary, error) {
 	return summary, nil
 }
 
-func (r *CountRunner) startWorker(tasks chan bool, stop chan bool, stats chan RunStats) {
+func (r *CountRunner) startWorker(tasks chan bool, stop chan bool, stats chan RunStats, commands []string) {
 	for {
 		select {
 		case <-tasks:
-			stats <- r.run()
+			stats <- r.run(commands)
 		case <-stop:
 			return
 		default:

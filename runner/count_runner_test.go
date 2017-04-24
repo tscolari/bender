@@ -34,7 +34,7 @@ var _ = Describe("CountRunner", func() {
 	})
 
 	JustBeforeEach(func() {
-		countRunner = runner.NewCountRunnerWithCmdRunner(cmdRunner, count, commands...)
+		countRunner = runner.NewCountRunnerWithCmdRunner(cmdRunner, count)
 
 		cmdRunner.WhenRunning(fake_command_runner.CommandSpec{
 			Path: strings.Split(commands[0], " ")[0],
@@ -50,7 +50,7 @@ var _ = Describe("CountRunner", func() {
 
 	Describe("Run", func() {
 		It("calls the command runner with correct arguments", func() {
-			_, err := countRunner.Run(1, cancelChan)
+			_, err := countRunner.Run(1, cancelChan, commands...)
 			Expect(err).NotTo(HaveOccurred())
 
 			executedCommands := cmdRunner.ExecutedCommands()
@@ -67,14 +67,14 @@ var _ = Describe("CountRunner", func() {
 				return nil
 			}
 
-			summary, err := countRunner.Run(1, cancelChan)
+			summary, err := countRunner.Run(1, cancelChan, commands...)
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(summary.Duration).To(BeNumerically("~", time.Duration(count)*(10*time.Millisecond), 10*time.Millisecond))
 		})
 
 		It("summarizes the commands it ran", func() {
-			summary, err := countRunner.Run(1, cancelChan)
+			summary, err := countRunner.Run(1, cancelChan, commands...)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(summary.Commands).To(HaveLen(1))
 			Expect(summary.Commands[1].Exec).To(Equal("hello world"))
@@ -94,7 +94,7 @@ var _ = Describe("CountRunner", func() {
 				return nil
 			}
 
-			summary, err := countRunner.Run(1, cancelChan)
+			summary, err := countRunner.Run(1, cancelChan, commands...)
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(summary.SuccessCounter).To(Equal(count / 2))
@@ -117,7 +117,7 @@ var _ = Describe("CountRunner", func() {
 			}
 
 			start := time.Now()
-			summary, err := countRunner.Run(1, cancelChan)
+			summary, err := countRunner.Run(1, cancelChan, commands...)
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(summary.EachRun).To(HaveLen(6))
@@ -147,6 +147,13 @@ var _ = Describe("CountRunner", func() {
 			Expect(summary.EachRun[4].StartTime.UnixNano()).To(BeNumerically(">", summary.EachRun[3].StartTime.UnixNano()))
 		})
 
+		Context("when there's no command given", func() {
+			It("summarizes the commands it ran", func() {
+				_, err := countRunner.Run(1, cancelChan)
+				Expect(err).To(MatchError("no commands given"))
+			})
+		})
+
 		Context("running multiple commands", func() {
 			var (
 				command1RunCount int
@@ -173,7 +180,7 @@ var _ = Describe("CountRunner", func() {
 			})
 
 			It("summarizes the commands it ran", func() {
-				summary, err := countRunner.Run(1, cancelChan)
+				summary, err := countRunner.Run(1, cancelChan, commands...)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(summary.Commands).To(HaveLen(2))
 
@@ -185,7 +192,7 @@ var _ = Describe("CountRunner", func() {
 			})
 
 			It("will eventually execute both", func() {
-				_, err := countRunner.Run(1, cancelChan)
+				_, err := countRunner.Run(1, cancelChan, commands...)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(command2RunCount).To(BeNumerically(">", 0))
@@ -204,7 +211,7 @@ var _ = Describe("CountRunner", func() {
 				mutex := &sync.Mutex{}
 
 				go func() {
-					_, err := countRunner.Run(1, cancelChan)
+					_, err := countRunner.Run(1, cancelChan, commands...)
 					Expect(err).NotTo(HaveOccurred())
 					mutex.Lock()
 					finished = true
@@ -230,7 +237,7 @@ var _ = Describe("CountRunner", func() {
 				}
 
 				start := time.Now()
-				summary, err := countRunner.Run(6, cancelChan)
+				summary, err := countRunner.Run(6, cancelChan, commands...)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(summary.EachRun).To(HaveLen(6))

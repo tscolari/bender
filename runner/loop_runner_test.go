@@ -32,7 +32,7 @@ var _ = Describe("LoopRunner", func() {
 	})
 
 	JustBeforeEach(func() {
-		loopRunner = runner.NewLoopRunnerWithCmdRunner(cmdRunner, interval, commands...)
+		loopRunner = runner.NewLoopRunnerWithCmdRunner(cmdRunner, interval)
 
 		cmdRunner.WhenRunning(fake_command_runner.CommandSpec{
 			Path: strings.Split(commands[0], " ")[0],
@@ -60,7 +60,7 @@ var _ = Describe("LoopRunner", func() {
 			go func() {
 				defer GinkgoRecover()
 				var err error
-				_, err = loopRunner.Run(1, cancelChan)
+				_, err = loopRunner.Run(1, cancelChan, commands...)
 				Expect(err).NotTo(HaveOccurred())
 				close(finished)
 			}()
@@ -75,7 +75,7 @@ var _ = Describe("LoopRunner", func() {
 			go func() {
 				defer GinkgoRecover()
 				var err error
-				_, err = loopRunner.Run(1, cancelChan)
+				_, err = loopRunner.Run(1, cancelChan, commands...)
 				Expect(err).NotTo(HaveOccurred())
 				close(finished)
 			}()
@@ -95,7 +95,7 @@ var _ = Describe("LoopRunner", func() {
 			go func() {
 				defer GinkgoRecover()
 				var err error
-				summary, err = loopRunner.Run(1, cancelChan)
+				summary, err = loopRunner.Run(1, cancelChan, commands...)
 				Expect(err).NotTo(HaveOccurred())
 				close(finished)
 			}()
@@ -113,7 +113,7 @@ var _ = Describe("LoopRunner", func() {
 			go func() {
 				defer GinkgoRecover()
 				var err error
-				summary, err = loopRunner.Run(1, cancelChan)
+				summary, err = loopRunner.Run(1, cancelChan, commands...)
 				Expect(err).NotTo(HaveOccurred())
 				close(finished)
 			}()
@@ -124,6 +124,13 @@ var _ = Describe("LoopRunner", func() {
 
 			Expect(summary.Commands).To(HaveLen(1))
 			Expect(summary.Commands[1].Exec).To(Equal("hello world"))
+		})
+
+		Context("when there's no command given", func() {
+			It("summarizes the commands it ran", func() {
+				_, err := loopRunner.Run(1, cancelChan)
+				Expect(err).To(MatchError("no commands given"))
+			})
 		})
 
 		Context("interval", func() {
@@ -141,7 +148,7 @@ var _ = Describe("LoopRunner", func() {
 				go func() {
 					defer GinkgoRecover()
 					var err error
-					summary, err = loopRunner.Run(1, cancelChan)
+					summary, err = loopRunner.Run(1, cancelChan, commands...)
 					Expect(err).NotTo(HaveOccurred())
 					close(finished)
 				}()

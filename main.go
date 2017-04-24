@@ -65,7 +65,7 @@ func main() {
 			return err
 		}
 
-		summary, err := runner.Run(c.Int("concurrency"), cancelChan)
+		summary, err := runner.Run(c.Int("concurrency"), cancelChan, c.StringSlice("command")...)
 		if err != nil {
 			return fmt.Errorf("Failed to run: %s", err.Error())
 		}
@@ -86,14 +86,12 @@ func main() {
 }
 
 func newRunnerFromArgs(c *cli.Context) (runner.Runner, error) {
-	commands := c.StringSlice("command")
-
 	if c.IsSet("count") {
-		return runner.NewCountRunner(c.Int("count"), commands...), nil
+		return runner.NewCountRunner(c.Int("count")), nil
 	}
 
 	if c.IsSet("keep-running") {
-		return runner.NewLoopRunner(c.Duration("interval"), commands...), nil
+		return runner.NewLoopRunner(c.Duration("interval")), nil
 	}
 
 	return nil, errors.New("no runner detected. Use `--keep-running` or `--count`")

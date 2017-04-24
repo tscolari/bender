@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -13,13 +14,13 @@ type LoopRunner struct {
 	interval time.Duration
 }
 
-func NewLoopRunner(interval time.Duration, commands ...string) *LoopRunner {
+func NewLoopRunner(interval time.Duration) *LoopRunner {
 	cmdRunner := linux_command_runner.New()
-	return NewLoopRunnerWithCmdRunner(cmdRunner, interval, commands...)
+	return NewLoopRunnerWithCmdRunner(cmdRunner, interval)
 }
 
-func NewLoopRunnerWithCmdRunner(cmdRunner commandrunner.CommandRunner, interval time.Duration, commands ...string) *LoopRunner {
-	baseRunner := newBaseRunner(cmdRunner, commands...)
+func NewLoopRunnerWithCmdRunner(cmdRunner commandrunner.CommandRunner, interval time.Duration) *LoopRunner {
+	baseRunner := newBaseRunner(cmdRunner)
 
 	return &LoopRunner{
 		baseRunner: baseRunner,
@@ -27,9 +28,13 @@ func NewLoopRunnerWithCmdRunner(cmdRunner commandrunner.CommandRunner, interval 
 	}
 }
 
-func (r *LoopRunner) Run(concurrency int, cancel chan bool) (Summary, error) {
+func (r *LoopRunner) Run(concurrency int, cancel chan bool, commands ...string) (Summary, error) {
+	if len(commands) == 0 {
+		return Summary{}, errors.New("no commands given")
+	}
+
 	summary := Summary{
-		Commands: r.commandsSummary(),
+		Commands: r.commandsSummary(commands),
 	}
 
 	start := time.Now()
@@ -40,7 +45,7 @@ func (r *LoopRunner) Run(concurrency int, cancel chan bool) (Summary, error) {
 	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func() {
-			r.startWorker(r.interval, cancel, stats)
+			r.startWorker(r.interval, cancel, stats, commands)
 			wg.Done()
 		}()
 	}
@@ -59,13 +64,13 @@ func (r *LoopRunner) Run(concurrency int, cancel chan bool) (Summary, error) {
 	return summary, nil
 }
 
-func (r *LoopRunner) startWorker(interval time.Duration, stop chan bool, stats chan RunStats) {
+func (r *LoopRunner) startWorker(interval time.Duration, stop chan bool, stats chan RunStats, commands []string) {
 	for {
 		select {
 		case <-stop:
 			return
 		default:
-			stats <- r.run()
+			stats <- r.run(commands)
 
 			select {
 			case <-stop:

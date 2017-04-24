@@ -30,27 +30,25 @@ type Command struct {
 }
 
 type Runner interface {
-	Run(concurrency int, cancel chan bool) (Summary, error)
+	Run(concurrency int, cancel chan bool, commands ...string) (Summary, error)
 }
 
 type baseRunner struct {
-	commands  []string
 	cmdRunner commandrunner.CommandRunner
 }
 
-func newBaseRunner(cmdRunner commandrunner.CommandRunner, commands ...string) baseRunner {
+func newBaseRunner(cmdRunner commandrunner.CommandRunner) baseRunner {
 	return baseRunner{
-		commands:  commands,
 		cmdRunner: cmdRunner,
 	}
 }
 
-func (r *baseRunner) run() RunStats {
+func (r *baseRunner) run(commands []string) RunStats {
 	var runStats RunStats
 	runStats.StartTime = time.Now()
 
-	cmdIdx := rand.Int() % len(r.commands)
-	args := strings.Split(r.commands[cmdIdx], " ")
+	cmdIdx := rand.Int() % len(commands)
+	args := strings.Split(commands[cmdIdx], " ")
 	runStats.Command = cmdIdx + 1
 
 	cmd := exec.Command(args[0], args[1:]...)
@@ -78,10 +76,10 @@ func (r *baseRunner) mergeRunstatsIntoSummary(stats chan RunStats, summary *Summ
 	}
 }
 
-func (r *baseRunner) commandsSummary() map[int]Command {
+func (r *baseRunner) commandsSummary(commands []string) map[int]Command {
 	summary := map[int]Command{}
 
-	for i, command := range r.commands {
+	for i, command := range commands {
 		summary[i+1] = Command{
 			Exec: command,
 		}
