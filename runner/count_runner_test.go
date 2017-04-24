@@ -192,6 +192,7 @@ var _ = Describe("CountRunner", func() {
 			})
 
 			It("will eventually execute both", func() {
+				count = 100
 				_, err := countRunner.Run(1, cancelChan, commands...)
 				Expect(err).NotTo(HaveOccurred())
 
