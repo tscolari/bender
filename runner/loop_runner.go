@@ -9,11 +9,18 @@ import (
 	"code.cloudfoundry.org/commandrunner/linux_command_runner"
 )
 
+// LoopRunner defines a runner that runs until it gets canceled.
+// To cancel it's execution the `cancel` channel in the `Run` method must be closed.
+// It's possible to define a interval in which the LoopRunner will wait to execute
+// the next command. Note that if concurrency level is anything bigger than 1,
+// interval will apply for each thread individually.
 type LoopRunner struct {
 	baseRunner
 	interval time.Duration
 }
 
+// Creates a new instance of the LoopRunner.
+// To run without any interval between runs, set interval to 0
 func NewLoopRunner(interval time.Duration) *LoopRunner {
 	cmdRunner := linux_command_runner.New()
 	return NewLoopRunnerWithCmdRunner(cmdRunner, interval)
@@ -28,6 +35,9 @@ func NewLoopRunnerWithCmdRunner(cmdRunner commandrunner.CommandRunner, interval 
 	}
 }
 
+// Start commands execution.
+// This method will block until `cancel` is closed. Once cancel is closed, it will
+// wait for the any running command to finish and summarize the results.
 func (r *LoopRunner) Run(concurrency int, cancel chan bool, commands ...string) (Summary, error) {
 	if len(commands) == 0 {
 		return Summary{}, errors.New("no commands given")
@@ -57,10 +67,9 @@ func (r *LoopRunner) Run(concurrency int, cancel chan bool, commands ...string) 
 	}()
 
 	wg.Wait()
+	summary.Duration = time.Since(start)
 	close(stats)
 	<-mergeStatsDone
-
-	summary.Duration = time.Since(start)
 	return summary, nil
 }
 
