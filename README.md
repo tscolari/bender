@@ -21,7 +21,7 @@ GLOBAL OPTIONS:
 The output is in JSON format:
 
 ```json
-$ go run main.go --count 5 --command ls --command "sleep 1" --command "sleep 3" --concurrency 3
+$ bender --count 5 --command ls --command "sleep 1" --command "sleep 3" --concurrency 3
 {
   "commands": {
     "1": {"exec":"ls","run_count":2},
